@@ -13,7 +13,9 @@ namespace :load do
 
     # Temporal db dumps path
     set :wpcli_remote_db_file, -> {"#{fetch(:tmp_dir)}/wpcli_database.sql.gz"}
+    set :wpcli_remote_db_sql, -> {fetch(:wpcli_remote_db_file).gsub(/.gz$/, '')}
     set :wpcli_local_db_file, -> {"#{fetch(:local_tmp_dir)}/wpcli_database.sql.gz"}
+    set :wpcli_local_db_sql, -> {fetch(:wpcli_local_db_file).gsub(/.gz$/, '')}
   end
 end
 
@@ -32,15 +34,17 @@ namespace :wpcli do
       unless roles(:dev).empty?
         on roles(:dev) do
           within fetch(:dev_path) do
-            execute :gunzip, "<", fetch(:wpcli_local_db_file), "|", :wp, :db, :import, "-"
-            execute :rm, fetch(:wpcli_local_db_file)
+            execute :gunzip, fetch(:wpcli_local_db_file)
+            execute :wp, :db, :import, fetch(:wpcli_local_db_sql)
+            execute :rm, fetch(:wpcli_local_db_sql)
             execute :wp, "search-replace", fetch(:wpcli_remote_url), fetch(:wpcli_local_url), fetch(:wpcli_args) || "--skip-columns=guid"
           end
         end
       else
         run_locally do
-          execute :gunzip, "<", fetch(:wpcli_local_db_file), "|", :wp, :db, :import, "-"
-          execute :rm, fetch(:wpcli_local_db_file)
+          execute :gunzip, fetch(:wpcli_local_db_file)
+          execute :wp, :db, :import, fetch(:wpcli_local_db_sql)
+          execute :rm, fetch(:wpcli_local_db_sql)
           execute :wp, "search-replace", fetch(:wpcli_remote_url), fetch(:wpcli_local_url), fetch(:wpcli_args) || "--skip-columns=guid"
         end
       end
@@ -62,8 +66,9 @@ namespace :wpcli do
       on roles(:web) do
         upload! fetch(:wpcli_local_db_file), fetch(:wpcli_remote_db_file)
         within release_path do
-          execute :gunzip, "<", fetch(:wpcli_remote_db_file), "|", :wp, :db, :import, "-"
-          execute :rm, fetch(:wpcli_remote_db_file)
+          execute :gunzip, fetch(:wpcli_remote_db_file)
+          execute :wp, :db, :import, fetch(:wpcli_remote_db_sql)
+          execute :rm, fetch(:wpcli_remote_db_sql)
           execute :wp, "search-replace", fetch(:wpcli_local_url), fetch(:wpcli_remote_url), fetch(:wpcli_args) || "--skip-columns=guid"
         end
       end
